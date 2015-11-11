@@ -62,9 +62,9 @@ type Store interface {
 	// NewGraph creates a new graph.
 	NewGraph(id string) (Graph, error)
 
-	// GetGraph return an existing graph if available. Getting a non existing
+	// Graph return an existing graph if available. Getting a non existing
 	// graph should return and error.
-	GetGraph(id string) (Graph, error)
+	Graph(id string) (Graph, error)
 
 	// DeleteGraph with delete an existing graph. Deleting a non existing graph
 	// should return and error.
@@ -156,6 +156,14 @@ type Graph interface {
 	// element is provided.
 	TriplesForSubject(s *node.Node, lo *LookupOptions) (Triples, error)
 
+	// TriplesForPredicate returns all triples available for a given predicate.
+	// If the lookup options provide a max number of elements the function will
+	// return a sample of the available triples. If time anchor bounds are
+	// provided in the lookup options, only predicates matching the the provided
+	// type window would be return. Same sampling consideration apply if max
+	// element is provided.
+	TriplesForPredicate(p *predicate.Predicate, lo *LookupOptions) (Triples, error)
+
 	// TriplesForObject returns all triples available for a given object.
 	// If the lookup options provide a max number of elements the function will
 	// return a sample of the available triples. If time anchor bounds are
@@ -184,5 +192,5 @@ type Graph interface {
 	Exist(t *triple.Triple) (bool, error)
 
 	// Triples allows to iterate over all available triples.
-	Triples() Triples
+	Triples() (Triples, error)
 }

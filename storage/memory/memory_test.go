@@ -31,16 +31,16 @@ func TestMemoryStore(t *testing.T) {
 		t.Errorf("memoryStore.NewGraph: should never fail to crate a graph; %s", err)
 	}
 	// Get an existing graph.
-	if _, err := s.GetGraph("test"); err != nil {
-		t.Errorf("memoryStore.GetGraph: should never fail to get an existing graph; %s", err)
+	if _, err := s.Graph("test"); err != nil {
+		t.Errorf("memoryStore.Graph: should never fail to get an existing graph; %s", err)
 	}
 	// Delete an existing graph.
 	if err := s.DeleteGraph("test"); err != nil {
 		t.Errorf("memoryStore.DeleteGraph: should never fail to delete an existing graph; %s", err)
 	}
 	// Get a non existing graph.
-	if _, err := s.GetGraph("test"); err == nil {
-		t.Errorf("memoryStore.GetGraph: should never succeed to get a non existing graph; %s", err)
+	if _, err := s.Graph("test"); err == nil {
+		t.Errorf("memoryStore.Graph: should never succeed to get a non existing graph; %s", err)
 	}
 	// Delete an existing graph.
 	if err := s.DeleteGraph("test"); err == nil {
@@ -51,7 +51,14 @@ func TestMemoryStore(t *testing.T) {
 func TestDefaultLookupChecker(t *testing.T) {
 	dlu := storage.DefaultLookup
 	c := newChecker(dlu)
-	ip, tp := predicate.NewImmutable("foo"), predicate.NewTemporal("bar", time.Now())
+	ip, err := predicate.NewImmutable("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tp, err := predicate.NewTemporal("bar", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !c.CheckAndUpdate(ip) {
 		t.Errorf("Immutable predicates should always validate with default lookup %v", dlu)
 	}
@@ -63,7 +70,10 @@ func TestDefaultLookupChecker(t *testing.T) {
 func TestLimitedItemsLookupChecker(t *testing.T) {
 	blu := &storage.LookupOptions{MaxElements: 1}
 	c := newChecker(blu)
-	ip := predicate.NewImmutable("foo")
+	ip, err := predicate.NewImmutable("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !c.CheckAndUpdate(ip) {
 		t.Errorf("The first predicate should always succeeed on bounded lookup %v", blu)
 	}
@@ -279,6 +289,25 @@ func TestTriplesForSubject(t *testing.T) {
 	}
 }
 
+func TestTriplesForPredicate(t *testing.T) {
+	ts := getTestTriples(t)
+	g, _ := NewStore().NewGraph("test")
+	if err := g.AddTriples(ts); err != nil {
+		t.Errorf("g.AddTriples(_) failed failed to add test triples with error %v", err)
+	}
+	trpls, err := g.TriplesForPredicate(ts[0].P(), storage.DefaultLookup)
+	if err != nil {
+		t.Errorf("g.TriplesForPredicate(%s) failed with error %v", ts[0].S(), err)
+	}
+	cnt := 0
+	for _ = range trpls {
+		cnt++
+	}
+	if cnt != 6 {
+		t.Errorf("g.triplesForPredicate(%s) failed to retrieve 3 predicates, got %d instead", ts[0].P(), cnt)
+	}
+}
+
 func TestTriplesForObject(t *testing.T) {
 	ts := getTestTriples(t)
 	g, _ := NewStore().NewGraph("test")
@@ -359,7 +388,10 @@ func TestTriples(t *testing.T) {
 	if err := g.AddTriples(ts); err != nil {
 		t.Errorf("g.AddTriples(_) failed failed to add test triples with error %v", err)
 	}
-	trpls := g.Triples()
+	trpls, err := g.Triples()
+	if err != nil {
+		t.Fatal(err)
+	}
 	cnt := 0
 	for _ = range trpls {
 		cnt++

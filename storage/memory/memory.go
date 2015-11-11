@@ -78,15 +78,15 @@ func (s *memoryStore) NewGraph(id string) (storage.Graph, error) {
 	return g, nil
 }
 
-// GetGraph return an existing graph if available. Getting a non existing
+// Graph return an existing graph if available. Getting a non existing
 // graph should return and error.
-func (s *memoryStore) GetGraph(id string) (storage.Graph, error) {
+func (s *memoryStore) Graph(id string) (storage.Graph, error) {
 	s.rwmu.RLock()
 	defer s.rwmu.RUnlock()
 	if g, ok := s.graphs[id]; ok {
 		return g, nil
 	}
-	return nil, fmt.Errorf("memory.GetGraph(%q): graph does not exist", id)
+	return nil, fmt.Errorf("memory.Graph(%q): graph does not exist", id)
 }
 
 // DeleteGraph with delete an existing graph. Deleting a non existing graph
@@ -365,6 +365,24 @@ func (m *memory) TriplesForSubject(s *node.Node, lo *storage.LookupOptions) (sto
 	return triples, nil
 }
 
+// TriplesForPredicate returns all triples available for a given predicate.
+func (m *memory) TriplesForPredicate(p *predicate.Predicate, lo *storage.LookupOptions) (storage.Triples, error) {
+	pGUID := p.GUID()
+	m.rwmu.RLock()
+	triples := make(chan *triple.Triple, len(m.idxP[pGUID]))
+	go func() {
+		ckr := newChecker(lo)
+		for _, t := range m.idxP[pGUID] {
+			if ckr.CheckAndUpdate(t.P()) {
+				triples <- t
+			}
+		}
+		m.rwmu.RUnlock()
+		close(triples)
+	}()
+	return triples, nil
+}
+
 // TriplesForObject returns all triples available for a given object.
 func (m *memory) TriplesForObject(o *triple.Object, lo *storage.LookupOptions) (storage.Triples, error) {
 	oGUID := o.GUID()
@@ -435,7 +453,7 @@ func (m *memory) Exist(t *triple.Triple) (bool, error) {
 }
 
 // Triples allows to iterate over all available triples.
-func (m *memory) Triples() storage.Triples {
+func (m *memory) Triples() (storage.Triples, error) {
 	triples := make(chan *triple.Triple, len(m.idx))
 	go func() {
 		for _, t := range m.idx {
@@ -443,5 +461,5 @@ func (m *memory) Triples() storage.Triples {
 		}
 		close(triples)
 	}()
-	return triples
+	return triples, nil
 }
